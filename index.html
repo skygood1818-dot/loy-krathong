@@ -170,13 +170,15 @@
 
   /* อธิษฐาน */
   form{width:100%;max-width:340px;margin-top:20px;display:flex;flex-direction:column;gap:14px;align-items:center}
-  input{
+  input,textarea{
     width:100%;background:transparent;border:0;border-bottom:1px solid rgba(246,239,228,.28);
     padding:10px 4px;text-align:center;color:var(--cream);font:300 16px/1.6 var(--serif);
     outline:none;border-radius:0;transition:border-color .4s;
   }
-  input::placeholder{color:rgba(246,239,228,.38)}
-  input:focus{border-color:var(--gold)}
+  /* ช่องคำอธิษฐานพิมพ์ได้ไม่จำกัด สูงขึ้นตามข้อความ แล้วเลื่อนในช่องเมื่อยาวมาก */
+  textarea{display:block;resize:none;overflow-y:auto;max-height:24dvh;scrollbar-width:thin}
+  input::placeholder,textarea::placeholder{color:rgba(246,239,228,.38)}
+  input:focus,textarea:focus{border-color:var(--gold)}
   .btn{
     margin-top:10px;display:inline-flex;align-items:center;gap:10px;
     padding:12px 30px;border-radius:999px;border:1px solid var(--line);background:rgba(246,201,122,.06);
@@ -186,8 +188,9 @@
   .btn:hover,.btn:focus-visible{background:rgba(246,201,122,.16);box-shadow:0 0 34px rgba(246,201,122,.28);outline:none}
   .btn:active{transform:scale(.97)}
   .btn svg{width:11px;height:18px;overflow:visible}
-  form input,form .btn{transition:opacity .9s ease,border-color .4s,background .4s,box-shadow .4s,transform .2s}
-  form.sent input,form.sent .btn{opacity:0;pointer-events:none}
+  form input,form textarea,form .btn{transition:opacity .9s ease,border-color .4s,background .4s,box-shadow .4s,transform .2s}
+  form.sent input,form.sent textarea,form.sent .btn{opacity:0;pointer-events:none}
+  section.flying .sub,section.flying .bye{opacity:0}
   .done{min-height:1.8em;font-size:13px;letter-spacing:.08em;color:var(--gold);opacity:0;transition:opacity 1.2s;margin:4px 0 0}
   .done.on{opacity:1}
   .bye{font:300 14px/1.9 var(--serif);color:var(--muted);margin-top:18px}
@@ -201,7 +204,10 @@
     position:fixed;z-index:6;left:50%;bottom:calc(var(--water) + 3dvh);width:min(86vw,460px);margin-left:calc(min(86vw,460px)/-2);
     text-align:center;font:300 clamp(17px,4.8vw,22px)/1.7 var(--serif);color:var(--cream);pointer-events:none;
     text-shadow:0 0 22px rgba(246,201,122,.85);animation:fly 8s ease-out forwards;
+    white-space:pre-wrap;overflow-wrap:anywhere;max-height:58dvh;overflow:hidden;
   }
+  .fly.m{font-size:15.5px;line-height:1.65}
+  .fly.s{font-size:13px;line-height:1.6}
   @keyframes fly{0%{opacity:0;transform:translateY(20px)}18%{opacity:1}70%{opacity:1}100%{opacity:0;transform:translateY(-32dvh)}}
 
   /* หน้าแรก: แตะเพื่อจุดเทียน */
@@ -290,7 +296,7 @@
     <p class="sub rv" style="--i:1">ให้สายน้ำพาคำขอของเราไป</p>
     <form id="wish" class="rv" style="--i:2" autocomplete="off">
       <input id="names" maxlength="24" placeholder="ชื่อเรา เช่น เธอ &amp; เรา" aria-label="ชื่อของเรา">
-      <input id="text" maxlength="60" placeholder="คำอธิษฐาน…" aria-label="คำอธิษฐาน">
+      <textarea id="text" rows="1" placeholder="คำอธิษฐาน…" aria-label="คำอธิษฐาน"></textarea>
       <button class="btn" type="submit">
         <svg viewBox="0 0 12 20" aria-hidden="true"><path class="flame" d="M6 0C11 8 12 15 6 19.5C0 15 1 8 6 0Z" fill="url(#gFlame)"/></svg>
         ลอยกระทง
@@ -492,6 +498,8 @@
     e.preventDefault();
     const names = $('#names').value.trim();
     const text = $('#text').value.trim() || 'ขอให้เราอยู่ด้วยกันไปนาน ๆ';
+    // ข้อความยิ่งยาว ตัวหนังสือยิ่งเล็กลงและลอยช้าลง จะได้อ่านทัน
+    const secs = Math.min(30, 8 + text.length / 22);
     document.activeElement && document.activeElement.blur();
 
     // ปล่อยตรงกลางน้ำ ขยับตำแหน่งเล็กน้อยไม่ให้ซ้อนกัน และเก็บไว้ไม่เกิน 4 ใบ
@@ -500,19 +508,27 @@
     mine.push(boat);
     if (mine.length > 4) mine.shift().remove();
 
-    const form = e.currentTarget;
-    form.classList.add('sent');
-    setTimeout(() => form.classList.remove('sent'), 7000);
+    // ระหว่างคำอธิษฐานลอยขึ้นฟ้า ซ่อนฟอร์มกับข้อความรอบ ๆ ไว้ก่อน ไม่ให้ตัวหนังสือทับกัน
+    const form = e.currentTarget, sec = form.closest('section');
+    form.classList.add('sent'); sec.classList.add('flying'); $('#done').classList.remove('on');
+    setTimeout(() => { form.classList.remove('sent'); sec.classList.remove('flying'); $('#done').classList.add('on'); }, secs * 880);
 
     const fly = document.createElement('div');
-    fly.className = 'fly'; fly.textContent = '“' + text + '”';
+    fly.className = 'fly' + (text.length > 260 ? ' s' : text.length > 90 ? ' m' : '');
+    fly.style.animationDuration = secs + 's';
+    fly.textContent = '“' + text + '”';
     document.body.appendChild(fly);
     fly.addEventListener('animationend', () => fly.remove());
 
     celebrate();
-    $('#done').classList.add('on');
     $('#text').value = '';
+    grow();
   });
+
+  /* ช่องคำอธิษฐานสูงขึ้นตามข้อความ */
+  const ta = $('#text');
+  function grow() { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
+  ta.addEventListener('input', grow);
 })();
 </script>
 </body>
